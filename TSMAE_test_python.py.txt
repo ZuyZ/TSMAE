@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+import torch
+import numpy as np
+from torch.utils.data import DataLoader, TensorDataset
+# Import your TSMAE class definition
+from TSMAE import TSMAE 
+def test_tsmae():
+ # File paths (hard-coded)
+ input_file = 'normal_sample0_column.txt'
+ checkpoint = 'tsmae_merged.pth'
+65
+ output_file = 'reconstructed.txt'
+ # Hyperparameters must match training
+ input_size = 1
+ hidden_size = 10
+ memory_size = 20
+ sparsity_factor = 0.001
+ # Select device
+ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+ print(f"Using device: {device}")
+ # 1) Load model and weights
+ model = TSMAE(input_size, hidden_size, memory_size, sparsity_factor)
+ state = torch.load(checkpoint, map_location=device)
+ model.load_state_dict(state)
+ model.to(device).eval()
+ # 2) Read input sequence
+ values = np.loadtxt(input_file, dtype=np.float32) # shape (seq_len,)
+ seq_len = values.shape[0]
+ # Create tensor of shape (1, seq_len, 1)
+ x = torch.from_numpy(values).unsqueeze(0).unsqueeze(-1).to(device)
+ # 3) Forward pass
+ with torch.no_grad():
+ x_recon, q, z, z_hat = model(x)
+ # 4) Save reconstructed values
+ recon = x_recon.cpu().squeeze().numpy() # shape (seq_len,)
+ np.savetxt(output_file, recon, fmt="%.6f")
+ print(f"Saved reconstructed sequence ({seq_len} points) to {output_file}")
+if __name__ == "__main__":
+ test_tsmae(
